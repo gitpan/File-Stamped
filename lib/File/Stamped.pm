@@ -2,10 +2,12 @@ package File::Stamped;
 use strict;
 use warnings;
 use 5.008001;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 use Carp ();
 use POSIX ();
 use SelectSaver ();
+use File::Path ();
+use File::Basename ();
 
 sub new {
     my $class = shift;
@@ -16,6 +18,9 @@ sub new {
     unless (exists($args{pattern}) || exists($args{callback})) {
         Carp::croak "You need to specify 'pattern' or 'callback'.";
     }
+    if (defined $args{symlink} && -e $args{symlink} && ! -l $args{symlink}) {
+        Carp::croak "File '$args{symlink}' already exists (not a symlink)"; 
+    }
     my $callback = delete($args{callback}) || _make_callback_from_pattern(delete($args{pattern}));
     my $self = bless \do { local *FH }, $class;
     tie *$self, $class, $self;
@@ -25,6 +30,7 @@ sub new {
         iomode            => '>>:utf8',
         rotationtime      => 1,
         callback          => $callback,
+        auto_make_dir     => 0,
         %args,
     );
     for my $k (keys %args) {
@@ -42,6 +48,8 @@ sub TIEHANDLE {
 }
 
 sub PRINT     { shift->print(@_) }
+
+sub WRITE     { shift->syswrite(@_) }
 
 sub _gen_filename {
     my $self = shift;
@@ -61,10 +69,27 @@ sub _make_callback_from_pattern {
     };
 }
 
-sub print {
-    my $self = shift;
+sub _gen_symlink {
+    my ($self, $fname) = @_;
+
+    if (defined(my $symlink = *$self->{symlink})) {
+        if (-e $symlink) {
+            my $link = readlink $symlink;
+            if (defined $link && $link ne $fname) {
+                unlink $symlink;
+            }
+        }
+        symlink $fname, $symlink;
+    }
+}
+
+sub _output {
+    my ($self, $callback) = @_;
 
     my $fname = $self->_gen_filename();
+    if (*$self->{auto_make_dir}) {
+        File::Path::make_path(File::Basename::dirname($fname));
+    }
     my $fh;
     if (*$self->{fh}) {
         if ($fname eq *$self->{fname} && *$self->{pid}==$$) {
@@ -74,15 +99,9 @@ sub print {
             close $fh if $fh;
         }
     }
-    unless ($fh) {
-        open $fh, *$self->{iomode}, $fname or die "Cannot open file($fname): $!";
-        if (*$self->{autoflush}) {
-            my $saver = SelectSaver->new($fh);
-            $|=1;
-        }
-    }
-    print {$fh} @_
-        or die "Cannot write to $fname: $!";
+
+    $fh = $callback->($fh, $fname);
+
     if (*$self->{close_after_write}) {
         close $fh;
     } else {
@@ -90,6 +109,49 @@ sub print {
         *$self->{fname} = $fname;
         *$self->{pid}   = $$;
     }
+}
+
+sub print {
+    my $self = shift;
+
+    my @msg = @_;
+
+    $self->_output(sub {
+        my ($fh, $fname) = @_;
+        unless ($fh) {
+            open $fh, *$self->{iomode}, $fname or die "Cannot open file($fname): $!";
+            if (*$self->{autoflush}) {
+                my $saver = SelectSaver->new($fh);
+                $|=1;
+            }
+            $self->_gen_symlink($fname);
+        }
+        print {$fh} @msg
+            or die "Cannot write to $fname: $!";
+
+        $fh;
+    });
+}
+
+sub syswrite {
+    my $self = shift;
+
+    my ($buf, @args) = @_;
+
+    $self->_output(sub {
+        my ($fh, $fname) = @_;
+        unless ($fh) {
+            open $fh, *$self->{iomode}, $fname or die "Cannot open file($fname): $!";
+            $self->_gen_symlink($fname);
+        }
+        my $res = @args == 0 ? CORE::syswrite($fh, $buf)
+                : @args == 1 ? CORE::syswrite($fh, $buf, $args[0])
+                : @args == 2 ? CORE::syswrite($fh, $buf, $args[0], $args[1])
+                : Carp::croak 'Too many arguments for syswrite';
+        die "Cannot write to $fname: $!" unless $res;
+
+        $fh;
+    });
 }
 
 1;
@@ -172,11 +234,28 @@ This attribute changes $|.
 
 The time between log file generates in seconds. Default value is 1.
 
+<<<<<<< HEAD
+=item auto_make_dir: Bool
+
+If this attribute is true, auto make directry of log file. Default value is false.
+=======
+=item symlink: Str
+
+generate symlink file for log file.
+>>>>>>> gen-symlink
+
 =back
 
 =item $fh->print($str: Str)
 
 This method prints the $str to the file.
+
+=item $fh->syswrite($str: Str)
+=item $fh->syswrite($str: Str, $len: Int)
+=item $fh->syswrite($str: Str, $len: Int, $offset: Int)
+
+This method prints the $str to the file.
+This method uses syswrite internally. Writing is not buffered.
 
 =back
 

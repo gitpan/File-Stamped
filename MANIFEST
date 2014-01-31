@@ -1,18 +1,18 @@
 Build.PL
 Changes
-lib/File/Stamped.pm
 LICENSE
-MANIFEST			This list of files
 META.json
-META.yml
-README
+README.md
+README.mkdn
+cpanfile
+lib/File/Stamped.pm
 t/00_compile.t
 t/01_simple.t
 t/02_rotationtime.t
 t/03_callback.t
-xt/01_podspell.t
+t/04_auto_make_dir.t
+t/05_symlink.t
+t/06_syswrite.t
 xt/02_perlcritic.t
-xt/03_pod.t
-xt/04_minimum_version.t
-xt/05_cpan_meta.t
-xt/06_meta_author.t
+META.yml
+MANIFEST
