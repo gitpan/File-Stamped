@@ -2,7 +2,7 @@ package File::Stamped;
 use strict;
 use warnings;
 use 5.008001;
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 use Carp ();
 use POSIX ();
 use SelectSaver ();
@@ -248,9 +248,7 @@ generate symlink file for log file.
 
 This method prints the $str to the file.
 
-=item $fh->syswrite($str: Str)
-=item $fh->syswrite($str: Str, $len: Int)
-=item $fh->syswrite($str: Str, $len: Int, $offset: Int)
+=item $fh->syswrite($str: Str [, $len: Int, $offset: Int])
 
 This method prints the $str to the file.
 This method uses syswrite internally. Writing is not buffered.
