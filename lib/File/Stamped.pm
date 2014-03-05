@@ -2,7 +2,7 @@ package File::Stamped;
 use strict;
 use warnings;
 use 5.008001;
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 use Carp ();
 use POSIX ();
 use SelectSaver ();
@@ -18,7 +18,7 @@ sub new {
     unless (exists($args{pattern}) || exists($args{callback})) {
         Carp::croak "You need to specify 'pattern' or 'callback'.";
     }
-    if (defined $args{symlink} && -e $args{symlink} && ! -l $args{symlink}) {
+    if (defined $args{symlink} && ! -l $args{symlink} && -e _) {
         Carp::croak "File '$args{symlink}' already exists (not a symlink)"; 
     }
     my $callback = delete($args{callback}) || _make_callback_from_pattern(delete($args{pattern}));
