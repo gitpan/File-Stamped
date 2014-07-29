@@ -2,7 +2,7 @@ package File::Stamped;
 use strict;
 use warnings;
 use 5.008001;
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 use Carp ();
 use POSIX ();
 use SelectSaver ();
@@ -73,7 +73,7 @@ sub _gen_symlink {
     my ($self, $fname) = @_;
 
     if (defined(my $symlink = *$self->{symlink})) {
-        if (-e $symlink) {
+        if (-l $symlink) {
             my $link = readlink $symlink;
             if (defined $link && $link ne $fname) {
                 unlink $symlink;
